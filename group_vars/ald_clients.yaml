@@ -1,0 +1,3 @@
+ansible_ssh_common_args: '-o ProxyJump=user@192.168.12.236'
+ansible_user: user
+ansible_password: P@ssw0rd

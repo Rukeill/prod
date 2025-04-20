@@ -1,0 +1,9 @@
+zone "xsoft.ru"    {
+    type master;
+    file "/etc/bind/zones/db.xsoft.ru";
+};
+
+zone "16.0.172.in-addr.arpa" {
+    type master;
+    file "/etc/bind/zones/16.0.172.in-addr.arpa";
+};

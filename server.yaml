@@ -1,0 +1,404 @@
+---
+- name: Установка и настройка сервера Astra Linux Directory (ALD)
+  hosts: ald_server
+  become: yes
+  vars_files:
+    - vars.yaml
+    - pass_vars.yaml
+
+  tasks: 
+    - name: Установка нового hostname через
+      ansible.builtin.command:
+        argv:
+          - hostnamectl
+          - set-hostname
+          - adc01.xsoft.ru
+
+    - name: НАстройка NTP
+      ansible.builtin.service:
+        name: ntp
+        state: restarted
+        enabled: yes
+
+    - name: Установка необходимых пакетов DNS DHCP Web server
+      apt:
+        name:
+          - bind9
+          - dnsutils
+          - fly-admin-dhcp
+          - nginx
+          - php-fpm
+          - php-mysql
+          - php-intl
+          - php-curl
+          - php-gd
+          - php-xml
+          - php-mbstring
+          - mariadb-server
+          - wget
+          - python3-setuptools
+          - python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Настройка DHCP
+      ansible.builtin.copy:
+        dest: "/etc/default/isc-dhcp-server"
+        content: |
+          DHCPDv4_CONF=/etc/dhcp/dhcpd.conf
+          DHCPDv4_PID=/var/run/dhcpd.pid
+          INTERFACESv4="eth1"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Настройка DHCP2
+      ansible.builtin.copy:
+        dest: "/etc/dhcp/dhcpd.conf"
+        content: |
+          authoritative;
+          option domain-name "xsoft.ru"; 
+          option domain-name-servers 172.0.16.1; 
+          default-lease-time 600;            
+          max-lease-time 7200;              
+          subnet 172.0.16.0 netmask 255.255.255.0 {
+            range 172.0.16.10 172.0.16.250; 
+            option routers 172.0.16.1;        
+          }
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Перезапуск службы DHCP
+      ansible.builtin.service:
+        name: isc-dhcp-server
+        state: restarted
+        enabled: yes
+
+    - name: Установка совместимой версии PyMySQL
+      pip:
+        name: pymysql==0.9.3
+        executable: pip3
+
+    - name: Запуск MariaDB
+      service:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Настройка MariaDB 
+      mysql_user:
+        name: root
+        password: "{{ db_root_password }}"
+        check_implicit_admin: yes
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Создание базы данных для MediaWiki
+      mysql_db:
+        name: "{{ db_name }}"
+        state: present
+        login_user: root
+        login_password: "{{ db_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+    
+    - name: Создание пользователя
+      mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}.*:ALL"
+        host: localhost
+        state: present
+        login_user: root
+        login_password: "{{ db_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Скачивание MediaWiki
+      get_url:
+        url: "https://releases.wikimedia.org/mediawiki/1.31/mediawiki-{{ version }}.tar.gz"
+        dest: "/var/www/html/"
+    
+    - name: Распаковка MediaWiki
+      unarchive:
+        src: "/var/www/html/mediawiki-{{ version }}.tar.gz"
+        dest: "/var/www/html/"
+        remote_src: yes                  
+
+    - name: Запуск MariaDB
+      service:
+        name: mariadb
+        state: restarted
+        enabled: yes
+
+    - name: Удаление старой директории
+      ansible.builtin.file:
+        path: "/var/www/html/mediawiki-{{ version }}.tar.gz"
+        state: absent
+
+    - name: Настройка прав доступа
+      ansible.builtin.file:
+        path: "/var/www/html/mediawiki-{{ version }}"
+        owner: www-data
+        group: www-data
+        recurse: yes
+
+    - name: Конечная настройка MediaWiki
+      command: >
+        php /var/www/html/mediawiki-{{ version }}/maintenance/install.php
+        --dbname "{{ db_name }}"
+        --dbuser "{{ db_user }}"
+        --dbpass "{{ db_password }}"
+        --server "http://xsoft.ru"
+        --scriptpath ""
+        --lang "ru"
+        --pass "{{ admin_password }}"
+        "xsoft wiki"
+        "{{ admin_username }}"
+
+
+    - name: Копирование конфигурационного файла Nginx
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/default
+        content: |
+          server {
+          listen 80 default_server;
+          listen [::]:80 default_server;
+
+          server_name xsoft.ru;
+
+          root /var/www/html/mediawiki-{{ version }}/;
+          index index.html index.htm index.php;
+
+          location / {
+              try_files $uri $uri/ =404;
+          }
+
+          location @rewrite {
+              rewrite ^/wiki/(.*)$ /wiki/index.php?title=$1&$args;
+          }
+
+          location ~ \.php$ {
+              include fastcgi_params;
+              fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+              fastcgi_index index.php;
+              fastcgi_param SCRIPT_FILENAME $request_filename;
+          }
+
+          location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+              expires max;
+              log_not_found off;
+          }
+          }
+
+    - name: Перезапуск Nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+    
+    - name: Установка необходимых пакетов ALD
+      apt:
+        name:
+          - ald-server-common 
+          - fly-admin-ald-server
+        state: present
+
+    - name: Настройка ALD
+      ansible.builtin.copy:
+        dest: "/tmp/pass"
+        content: |
+          K/M:{{ adl_password }}
+          admin/admin:{{ adl_password }}
+        owner: root
+        group: root
+        mode: '0600'
+    
+    - name: Настройка ALD
+      ansible.builtin.copy:
+        dest: "/etc/hosts"
+        content: |
+          127.0.0.1       localhost
+          127.0.1.1       adc01
+          172.0.16.1      adc01.xsoft.ru
+          ::1     localhost ip6-localhost ip6-loopback
+          ff02::1 ip6-allnodes
+          ff02::2 ip6-allrouters
+        owner: root
+        group: root
+        mode: '0644'
+    
+    - name: Инициализация сервера ALD
+      shell: |
+        ald-init init --force --pass-file=/tmp/pass
+      args:
+        executable: /bin/bash
+     
+    - name: Удаление файла паролей
+      ansible.builtin.file:
+        state: absent
+        path: "/tmp/pass"
+
+    - name: Настройка ip forward
+      blockinfile:
+        path: "/etc/ufw/sysctl.conf"
+        block: |
+          net/ipv4/ip_forward=1
+        marker: "#ansible_config"
+
+
+    - name: Включение IP-forward
+      ansible.builtin.sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        state: present
+        reload: yes
+    
+    - name: Настройка UFW
+      ansible.builtin.copy:
+        dest: "/etc/default/ufw"
+        content: |
+          IPV6=yes
+          DEFAULT_INPUT_POLICY="ACCEPT"
+          DEFAULT_OUTPUT_POLICY="ACCEPT"
+          DEFAULT_FORWARD_POLICY="ACCEPT"
+          DEFAULT_APPLICATION_POLICY="SKIP"
+          MANAGE_BUILTINS=no
+          IPT_SYSCTL=/etc/ufw/sysctl.conf
+          IPT_MODULES="nf_conntrack_ftp nf_nat_ftp nf_conntrack_netbios_ns"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Настройка NAT
+      blockinfile:
+        path: "/etc/ufw/before.rules"
+        block: |
+          *nat
+          :POSTROUTING ACCEPT [0:0]
+          -A POSTROUTING -s 172.0.16.0/24 -o eth0 -j MASQUERADE
+          COMMIT
+        marker: "#ansible_config"
+
+    
+    - name: "Разрешение входящего трафика на нутренний интерфейс"
+      community.general.ufw:
+        rule: allow
+        direction: in
+        interface: eth1  
+
+    - name: "Разрешение исходящего трафика на внешний интерфейс"
+      community.general.ufw:
+        rule: allow
+        direction: out
+        interface: eth0  
+    
+    - name: "Открытие основныйх портов"
+      community.general.ufw:
+        rule: allow
+        direction: in
+        port: "{{ item }}"
+      loop:
+        - 80
+        - 443
+        - 22
+
+    - name: "Запрет входящего трафика на внешни интерфейс"
+      community.general.ufw:
+        rule: deny
+        direction: in
+        interface: eth0  
+   
+    - name: Перезапуск службы ufw
+      ansible.builtin.service:
+        name: ufw
+        state: restarted
+        enabled: yes
+
+    - name: Активация UFW
+      community.general.ufw:
+        state: enabled
+
+    - name: Создание директории .ssh
+      ansible.builtin.file:
+        path: /home/{{ ansible_user }}/.ssh
+        state: directory
+        mode: '0700'
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Добавление публичного ключа в authorized_keys
+      ansible.builtin.authorized_key:
+        user: "{{ ansible_user }}"
+        state: present
+        key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_rsa.pub') }}"
+
+    - name: Получение ip адресов клиентов dhcpd.leases
+      shell: |
+        cat /var/lib/dhcp/dhcpd.leases | grep -oP 'lease\s+\K([0-9]{1,3}\.){3}[0-9]{1,3}' | sort | uniq
+      register: dhcp_clients
+      retries: 30  # попытки
+      delay: 15    # Задержка между попытками 
+      until: dhcp_clients.stdout_lines | length > 0  
+
+    - name: Запись ip в переменную
+      set_fact:
+        dhcp_inventory: "{{ dhcp_clients.stdout_lines }}"
+      delegate_to: localhost
+      run_once: true  
+
+    - name: Настройка bind9
+      ansible.builtin.copy:
+        src: "bind9/{{ item }}"
+        dest: "/etc/bind/{{ item }}"
+        owner: root
+        group: bind
+        mode: '0644'
+      loop:
+        - named.conf.options
+        - named.conf.local
+
+    - name: Создание директории /etc/bind/zones
+      ansible.builtin.file:
+        path: "/etc/bind/zones"
+        state: directory
+        owner: bind
+        group: bind
+        mode: '0755'
+
+    - name: Настройка зоны
+      ansible.builtin.copy:
+        src: "bind9/zones/{{ item }}"
+        dest: "/etc/bind/zones/{{ item }}"
+        owner: bind
+        group: bind
+        mode: '0644'
+      loop:
+        - db.xsoft.ru
+        - 16.0.172.in-addr.arpa
+
+    - name: Добавление клиентов в конфигурацию dns
+      blockinfile:
+        path: "/etc/bind/zones/db.xsoft.ru"
+        block: |
+          {% for ip in dhcp_inventory %}
+          cli{{ loop.index }}   IN      A       {{ ip }}
+          {% endfor %}
+        marker: ";ansible_config"
+
+    - name: Перезапуск службы BIND
+      ansible.builtin.service:
+        name: bind9
+        state: restarted
+        enabled: yes
+    
+    - name: добавление клиентов в inventory
+      delegate_to: localhost
+      run_once: true
+      become: no
+      blockinfile:
+        path: "{{ playbook_dir }}/inventory.ini"
+        block: |
+          [ald_clients]
+          {% for ip in dhcp_inventory %}
+          {{ ip }} hostname=cli{{ loop.index }}
+          {% endfor %}
+        marker: "#ansible_config"

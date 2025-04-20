@@ -1,0 +1,12 @@
+$TTL    604800
+@       IN      SOA     adc01.xsoft.ru. root.xsoft.ru. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      adc01.xsoft.ru.
+1     IN      PTR     adc01.xsoft.ru.
+10    IN      PTR     cli1.xsoft.ru.
+11    IN      PTR     cli2.xsoft.ru.

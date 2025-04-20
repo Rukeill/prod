@@ -1,0 +1,40 @@
+---
+- name: Генерация SSH-ключа
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Создание SSH-ключа
+      ansible.builtin.openssh_keypair:
+        path: ~/.ssh/id_rsa
+        type: rsa
+        size: 4096
+        comment: "ansible-generated-key"
+      register: ssh_key
+
+    - name: Добавление всех хостов в known_hosts
+      known_hosts:
+        path: ~/.ssh/known_hosts
+        name: "{{ groups['ald_server'][0] }}"
+        key: "{{ lookup('pipe', 'ssh-keyscan -t rsa ' + groups['ald_server'][0]) }}"
+
+    - name: Установка необходимых пакетов 
+      become: yes
+      apt:
+        name:
+          - sshpass
+        state: present
+        update_cache: yes
+
+    - name: Установка дополнительных библиотек
+      shell: |
+        ansible-galaxy collection install community.general
+      args:
+        executable: /bin/bash
+
+    - name: Настройка ansible
+      become: yes
+      lineinfile: 
+        path: "/etc/ansible/ansible.cfg"
+        insertafter: '\[defaults\]'
+        line: "host_key_checking = False"
+        state: present

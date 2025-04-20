@@ -1,0 +1,61 @@
+- name: Настройка клиентов
+  hosts: ald_clients
+  become: yes
+  vars_files:
+    - pass_vars.yaml
+
+  tasks:
+      - name: Установка необходимых пакетов
+        apt:
+          name:
+            - ald-client-common 
+            - ald-admin
+          state: present
+          update_cache: yes
+      
+      - name: Установка нового hostname
+        ansible.builtin.command:
+          argv:
+            - hostnamectl
+            - set-hostname
+            - "{{ hostname }}"
+        
+      - name: Настройка hosts
+        ansible.builtin.copy:
+          dest: "/etc/hosts"
+          content: |
+            127.0.0.1       localhost
+            ::1     localhost ip6-localhost ip6-loopback
+            ff02::1 ip6-allnodes
+            ff02::2 ip6-allrouters
+          owner: root
+          group: root
+          mode: '0644'     
+    
+      - name: Настройка ALD
+        ansible.builtin.copy:
+          dest: "/tmp/pass"
+          content: |
+            K/M:{{ adl_password }}
+            admin/admin:{{ adl_password }}
+          owner: root
+          group: root
+          mode: '0600'
+
+      - name: Добавление в домен
+        shell: |
+          ald-client join adc01.xsoft.ru --pass-file=/tmp/pass -f
+        args:
+          executable: /bin/bash
+
+      - name: Удаление файла паролей
+        ansible.builtin.file:
+         state: absent
+         path: "/tmp/pass"
+
+      - name: Перезагрузка системы
+        reboot:
+          connect_timeout: 5
+          reboot_timeout: 600
+          pre_reboot_delay: 0
+          post_reboot_delay: 30

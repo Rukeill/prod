@@ -1,0 +1,4 @@
+db_name: "mediawiki"
+db_user: "mediawiki_user"
+admin_username: "Admin"
+version: "1.31.1"
