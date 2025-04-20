@@ -212,7 +212,7 @@
         group: root
         mode: '0600'
     
-    - name: Настройка ALD
+    - name: Конфигурирование файла hosts
       ansible.builtin.copy:
         dest: "/etc/hosts"
         content: |
