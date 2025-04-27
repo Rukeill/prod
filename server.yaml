@@ -335,8 +335,8 @@
       shell: |
         cat /var/lib/dhcp/dhcpd.leases | grep -oP 'lease\s+\K([0-9]{1,3}\.){3}[0-9]{1,3}' | sort | uniq
       register: dhcp_clients
-      retries: 30  # попытки
-      delay: 15    # Задержка между попытками 
+      retries: 30
+      delay: 15
       until: dhcp_clients.stdout_lines | length > 0  
 
     - name: Запись ip в переменную
