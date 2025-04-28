@@ -3,7 +3,6 @@
   become: yes
   vars_files:
     - pass_vars.yaml
-
   tasks:
       - name: Установка необходимых пакетов
         apt:
