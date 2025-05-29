@@ -7,7 +7,10 @@ import {
   connectToL2TP, 
   disconnectFromVPN, 
   showConnectionSuccessNotification,
-  createL2TPProfile
+  connectToOpenVPN,
+  disconnectFromOpenVPN,
+  getOpenVPNStatus,
+  getOpenVPNConfig
 } from '@/utils/vpnApi';
 import { getSecureValue, SECURE_KEYS } from '@/utils/secureStorage';
 import { Platform, Alert } from 'react-native';
@@ -16,7 +19,7 @@ interface VpnState {
   profiles: VpnProfile[];
   connection: ConnectionState;
   
-  // Actions
+  // Действия
   addProfile: (profile: VpnProfile) => Promise<void>;
   updateProfile: (profile: VpnProfile) => Promise<void>;
   deleteProfile: (id: string) => Promise<void>;
@@ -25,6 +28,7 @@ interface VpnState {
   connect: (profileId: string) => Promise<void>;
   disconnect: () => Promise<void>;
   loadProfiles: () => Promise<void>;
+  checkConnectionStatus: () => Promise<void>;
 }
 
 export const useVpnStore = create<VpnState>()(
@@ -37,25 +41,60 @@ export const useVpnStore = create<VpnState>()(
       },
       
       loadProfiles: async () => {
-        // This function is mainly for refreshing profiles
-        // The actual loading is handled by the persist middleware
+        // Эта функция в основном для обновления профилей
+        // Фактическая загрузка обрабатывается middleware persist
         return Promise.resolve();
+      },
+      
+      checkConnectionStatus: async () => {
+        if (Platform.OS === 'web') return;
+        
+        try {
+          const status = await getOpenVPNStatus();
+          const { connection } = get();
+          
+          if (connection.profileId && status !== connection.status) {
+            set({
+              connection: {
+                ...connection,
+                status: status as any,
+              },
+            });
+          }
+        } catch (error) {
+          console.error('Не удалось проверить статус подключения:', error);
+        }
       },
       
       addProfile: async (profile) => {
         try {
-          // Encrypt sensitive data before saving
+          // Для профилей OpenVPN убеждаемся, что у нас есть файл конфигурации
+          let finalProfile = { ...profile };
+          
+          if (profile.protocol === 'openvpn' && !profile.configFile) {
+            try {
+              const config = await getOpenVPNConfig();
+              finalProfile.configFile = config;
+            } catch (error) {
+              console.error('Не удалось получить конфигурацию OpenVPN:', error);
+              Alert.alert('Ошибка', 'Не удалось получить конфигурацию OpenVPN с сервера');
+              throw error;
+            }
+          }
+          
+          // Шифруем чувствительные данные перед сохранением
           const secureProfile = {
-            ...profile,
-            username: profile.username ? encrypt(profile.username) : undefined,
-            password: profile.password ? encrypt(profile.password) : undefined,
+            ...finalProfile,
+            username: finalProfile.username ? encrypt(finalProfile.username) : undefined,
+            password: finalProfile.password ? encrypt(finalProfile.password) : undefined,
+            configFile: finalProfile.configFile ? encrypt(finalProfile.configFile) : undefined,
           };
           
           set((state) => ({
             profiles: [...state.profiles, secureProfile],
           }));
         } catch (error) {
-          console.error('Failed to add profile:', error);
+          console.error('Не удалось добавить профиль:', error);
           Alert.alert('Ошибка', 'Не удалось добавить профиль');
           throw error;
         }
@@ -63,11 +102,12 @@ export const useVpnStore = create<VpnState>()(
       
       updateProfile: async (profile) => {
         try {
-          // Encrypt sensitive data before saving
+          // Шифруем чувствительные данные перед сохранением
           const secureProfile = {
             ...profile,
             username: profile.username ? encrypt(profile.username) : undefined,
             password: profile.password ? encrypt(profile.password) : undefined,
+            configFile: profile.configFile ? encrypt(profile.configFile) : undefined,
           };
           
           set((state) => ({
@@ -76,7 +116,7 @@ export const useVpnStore = create<VpnState>()(
             ),
           }));
         } catch (error) {
-          console.error('Failed to update profile:', error);
+          console.error('Не удалось обновить профиль:', error);
           Alert.alert('Ошибка', 'Не удалось обновить профиль');
           throw error;
         }
@@ -84,15 +124,21 @@ export const useVpnStore = create<VpnState>()(
       
       deleteProfile: async (id) => {
         try {
+          const { connection } = get();
+          
+          // Если удаляемый профиль в данный момент подключен, отключаем его
+          if (connection.profileId === id && connection.status === 'connected') {
+            await get().disconnect();
+          }
+          
           set((state) => ({
             profiles: state.profiles.filter((p) => p.id !== id),
-            // If the deleted profile is currently connected, disconnect it
             connection: state.connection.profileId === id 
               ? { status: 'disconnected', profileId: null }
               : state.connection
           }));
         } catch (error) {
-          console.error('Failed to delete profile:', error);
+          console.error('Не удалось удалить профиль:', error);
           Alert.alert('Ошибка', 'Не удалось удалить профиль');
           throw error;
         }
@@ -100,6 +146,12 @@ export const useVpnStore = create<VpnState>()(
       
       clearAllProfiles: async () => {
         try {
+          // Отключаемся, если подключены
+          const { connection } = get();
+          if (connection.status === 'connected') {
+            await get().disconnect();
+          }
+          
           set({
             profiles: [],
             connection: {
@@ -108,7 +160,7 @@ export const useVpnStore = create<VpnState>()(
             },
           });
         } catch (error) {
-          console.error('Failed to clear profiles:', error);
+          console.error('Не удалось очистить профили:', error);
           Alert.alert('Ошибка', 'Не удалось очистить профили');
           throw error;
         }
@@ -133,7 +185,7 @@ export const useVpnStore = create<VpnState>()(
           return;
         }
         
-        // Set status to "connecting"
+        // Устанавливаем статус "подключение"
         set({
           connection: {
             status: 'connecting',
@@ -142,18 +194,30 @@ export const useVpnStore = create<VpnState>()(
         });
         
         try {
-          // Get server address from secure storage
-          const serverAddress = await getSecureValue(SECURE_KEYS.SERVER_ADDRESS);
-          
-          // Decrypt credentials
+          // Расшифровываем учетные данные
           const username = profile.username ? decrypt(profile.username) : undefined;
           const password = profile.password ? decrypt(profile.password) : undefined;
+          const configFile = profile.configFile ? decrypt(profile.configFile) : undefined;
           
-          if (profile.protocol === 'l2tp') {
-            // Get IPsec key for L2TP
+          let success = false;
+          
+          if (profile.protocol === 'openvpn') {
+            if (!configFile) {
+              throw new Error('Файл конфигурации OpenVPN не найден');
+            }
+            
+            success = await connectToOpenVPN(
+              profile.name,
+              configFile,
+              username,
+              password
+            );
+          } else if (profile.protocol === 'l2tp') {
+            // Получаем адрес сервера и ключ IPsec из безопасного хранилища
+            const serverAddress = await getSecureValue(SECURE_KEYS.SERVER_ADDRESS);
             const ipsecKey = await getSecureValue(SECURE_KEYS.IPSEC_KEY);
             
-            // Create L2TP profile and show instructions
+            // Для L2TP мы только показываем инструкции, поэтому success всегда false
             await connectToL2TP(
               profile.name,
               serverAddress,
@@ -161,24 +225,19 @@ export const useVpnStore = create<VpnState>()(
               password,
               ipsecKey
             );
-            
-            // Show success notification with instructions
-            showConnectionSuccessNotification(profile.name);
-            
-            // Set status back to disconnected since we're not actually connecting programmatically
+            success = false; // L2TP требует ручной настройки
+          }
+          
+          if (success) {
             set({
               connection: {
-                status: 'disconnected',
-                profileId: null,
+                status: 'connected',
+                profileId,
               },
             });
-          } else if (profile.protocol === 'openvpn') {
-            Alert.alert(
-              'OpenVPN не поддерживается',
-              'В текущей версии приложения поддерживается только L2TP/IPsec протокол. OpenVPN требует дополнительной нативной реализации.',
-              [{ text: 'OK' }]
-            );
             
+            showConnectionSuccessNotification(profile.name);
+          } else {
             set({
               connection: {
                 status: 'disconnected',
@@ -187,7 +246,7 @@ export const useVpnStore = create<VpnState>()(
             });
           }
         } catch (error) {
-          console.error('Connection error:', error);
+          console.error('Ошибка подключения:', error);
           set({
             connection: {
               status: 'error',
@@ -201,9 +260,19 @@ export const useVpnStore = create<VpnState>()(
       },
       
       disconnect: async () => {
+        const { connection } = get();
+        
         try {
-          // Show instructions for disconnection
-          await disconnectFromVPN();
+          if (connection.profileId) {
+            const { profiles } = get();
+            const profile = profiles.find(p => p.id === connection.profileId);
+            
+            if (profile?.protocol === 'openvpn') {
+              await disconnectFromOpenVPN();
+            } else {
+              await disconnectFromVPN();
+            }
+          }
           
           set({
             connection: {
@@ -212,7 +281,7 @@ export const useVpnStore = create<VpnState>()(
             },
           });
         } catch (error) {
-          console.error('Disconnection error:', error);
+          console.error('Ошибка отключения:', error);
           Alert.alert('Ошибка отключения', error instanceof Error ? error.message : 'Неизвестная ошибка');
         }
       },
@@ -222,7 +291,7 @@ export const useVpnStore = create<VpnState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         profiles: state.profiles,
-        // Don't persist connection state
+        // Не сохраняем состояние подключения
       }),
     }
   )

@@ -21,7 +21,7 @@ export default function ProfilesScreen() {
       try {
         await loadProfiles();
       } catch (error) {
-        console.error('Failed to load profiles:', error);
+        console.error('Не удалось загрузить профили:', error);
       } finally {
         setLoading(false);
       }
@@ -42,7 +42,7 @@ export default function ProfilesScreen() {
     try {
       await loadProfiles();
     } catch (error) {
-      console.error('Failed to refresh profiles:', error);
+      console.error('Не удалось обновить профили:', error);
     } finally {
       setRefreshing(false);
     }

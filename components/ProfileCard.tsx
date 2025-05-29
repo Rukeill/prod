@@ -21,9 +21,10 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
   
   const isCurrentProfile = connection.profileId === profile.id;
   const status = isCurrentProfile ? connection.status : 'disconnected';
+  const isOpenVPN = profile.protocol === 'openvpn';
   const isL2tp = profile.protocol === 'l2tp';
   
-  // Decrypt username for display
+  // Расшифровываем имя пользователя для отображения
   const decryptedUsername = profile.username ? decrypt(profile.username) : '';
   
   const handlePress = () => {
@@ -36,12 +37,12 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
   const handleConnectionToggle = () => {
     if (isCurrentProfile && connection.status === 'connected') {
       disconnect().catch(error => {
-        console.error('Failed to disconnect:', error);
+        console.error('Не удалось отключиться:', error);
         Alert.alert('Ошибка', 'Не удалось отключиться от VPN');
       });
     } else {
       connect(profile.id).catch(error => {
-        console.error('Failed to connect:', error);
+        console.error('Не удалось подключиться:', error);
         Alert.alert('Ошибка', 'Не удалось подключиться к VPN');
       });
     }
@@ -52,14 +53,14 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
       try {
         await Linking.openURL('app-settings:');
       } catch (error) {
-        console.error('Could not open settings:', error);
+        console.error('Не удалось открыть настройки:', error);
         Alert.alert('Ошибка', 'Не удалось открыть настройки');
       }
     } else if (Platform.OS === 'android') {
       try {
         await Linking.openSettings();
       } catch (error) {
-        console.error('Could not open settings:', error);
+        console.error('Не удалось открыть настройки:', error);
         Alert.alert('Ошибка', 'Не удалось открыть настройки');
       }
     } else {
@@ -92,7 +93,7 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
                   .catch(console.error);
               }
             } catch (error) {
-              console.error('Failed to delete profile:', error);
+              console.error('Не удалось удалить профиль:', error);
               Alert.alert('Ошибка', 'Не удалось удалить профиль');
             }
           },
@@ -164,12 +165,10 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
             <Trash2 size={14} color={colors.error} />
           </TouchableOpacity>
           
-          {isL2tp && (
-            <ConnectionButton
-              status={status}
-              onPress={handleConnectionToggle}
-            />
-          )}
+          <ConnectionButton
+            status={status}
+            onPress={handleConnectionToggle}
+          />
         </View>
       </View>
     </TouchableOpacity>

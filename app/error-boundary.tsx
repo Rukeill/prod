@@ -21,7 +21,7 @@ const webTargetOrigins = [
 
 function sendErrorToIframeParent(error: any, errorInfo?: any) {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    console.debug('Sending error to parent:', {
+    console.debug('Отправка ошибки родительскому элементу:', {
       error,
       errorInfo,
       referrer: document.referrer
@@ -30,7 +30,7 @@ function sendErrorToIframeParent(error: any, errorInfo?: any) {
     const errorMessage = {
       type: 'ERROR',
       error: {
-        message: error?.message || error?.toString() || 'Unknown error',
+        message: error?.message || error?.toString() || 'Неизвестная ошибка',
         stack: error?.stack,
         componentStack: errorInfo?.componentStack,
         timestamp: new Date().toISOString(),
@@ -44,7 +44,7 @@ function sendErrorToIframeParent(error: any, errorInfo?: any) {
         webTargetOrigins.includes(document.referrer) ? document.referrer : '*'
       );
     } catch (postMessageError) {
-      console.error('Failed to send error to parent:', postMessageError);
+      console.error('Не удалось отправить ошибку родительскому элементу:', postMessageError);
     }
   }
 }
@@ -53,10 +53,10 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
   window.addEventListener('error', (event) => {
     event.preventDefault();
     const errorDetails = event.error ?? {
-      message: event.message ?? 'Unknown error',
-      filename: event.filename ?? 'Unknown file',
-      lineno: event.lineno ?? 'Unknown line',
-      colno: event.colno ?? 'Unknown column'
+      message: event.message ?? 'Неизвестная ошибка',
+      filename: event.filename ?? 'Неизвестный файл',
+      lineno: event.lineno ?? 'Неизвестная строка',
+      colno: event.colno ?? 'Неизвестная колонка'
     };
     sendErrorToIframeParent(errorDetails);
   }, true);
@@ -95,11 +95,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <View style={styles.container}>
           <View style={styles.content}>
-            <Text style={styles.title}>Something went wrong</Text>
+            <Text style={styles.title}>Что-то пошло не так</Text>
             <Text style={styles.subtitle}>{this.state.error?.message}</Text>
             {Platform.OS !== 'web' && (
               <Text style={styles.description}>
-                Please check your device logs for more details.
+                Пожалуйста, проверьте логи устройства для получения дополнительной информации.
               </Text>
             )}
           </View>

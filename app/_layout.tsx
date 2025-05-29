@@ -16,15 +16,15 @@ export const unstable_settings = {
   initialRouteName: "index",
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Предотвращаем автоматическое скрытие экрана загрузки до завершения загрузки ресурсов
 SplashScreen.preventAutoHideAsync();
 
-// Create a client with default options
+// Создаем клиент с настройками по умолчанию
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000, // 5 минут
       refetchOnWindowFocus: false,
     },
   },
@@ -45,7 +45,7 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    // Initialize secure storage when the app starts
+    // Инициализируем безопасное хранилище при запуске приложения
     const setupApp = async () => {
       await initializeSecureStorage();
       

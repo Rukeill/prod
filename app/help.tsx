@@ -34,9 +34,9 @@ export default function HelpScreen() {
         </Text>
       </View>
       
-      <View style={[styles.infoBox, { backgroundColor: `${colors.warning}20`, borderColor: colors.warning }]}>
+      <View style={[styles.infoBox, { backgroundColor: `${colors.primary}20`, borderColor: colors.primary }]}>
         <Text style={[styles.infoText, { color: colors.text.primary }]}>
-          Это демонстрационная версия приложения. Функции VPN-подключения требуют нативной реализации с использованием специфичных для платформы API.
+          Приложение поддерживает реальные VPN-подключения через OpenVPN и L2TP/IPsec протоколы.
         </Text>
       </View>
       
@@ -65,10 +65,10 @@ export default function HelpScreen() {
         
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.question, { color: colors.text.primary }]}>
-            Почему не работает подключение?
+            Как работает OpenVPN подключение?
           </Text>
           <Text style={[styles.answer, { color: colors.text.secondary }]}>
-            В демонстрационной версии приложения функции VPN-подключения не реализованы полностью. Для работы VPN требуется нативная реализация с использованием специфичных для платформы API, таких как NetworkExtension на iOS и VpnService на Android.
+            OpenVPN использует SSL/TLS для шифрования и может работать через UDP или TCP. Конфигурация автоматически загружается с сервера при создании профиля.
           </Text>
         </View>
         
@@ -77,7 +77,7 @@ export default function HelpScreen() {
             Как настроить L2TP/IPsec подключение?
           </Text>
           <Text style={[styles.answer, { color: colors.text.secondary }]}>
-            Для L2TP/IPsec необходимо создать профиль с адресом сервера, учетными данными и предварительным ключом IPsec. В полной версии приложения, после создания профиля, вы сможете управлять подключением через системные настройки вашего устройства.
+            Для L2TP/IPsec необходимо создать профиль с адресом сервера, учетными данными и предварительным ключом IPsec. После создания профиля, вы сможете управлять подключением через системные настройки вашего устройства.
           </Text>
         </View>
       </View>
@@ -130,11 +130,11 @@ export default function HelpScreen() {
             Создание нового профиля
           </Text>
           <Text style={[styles.guideText, { color: colors.text.secondary }]}>
-            1. Нажмите кнопку "+" на главном экране{"\n"}
-            2. Введите имя профиля{"\n"}
-            3. Выберите протокол (OpenVPN или L2TP/IPsec){"\n"}
-            4. Введите учетные данные (если необходимо){"\n"}
-            5. Нажмите "Сохранить профиль"
+            {`1. Нажмите кнопку "+" на главном экране
+2. Введите имя профиля
+3. Выберите протокол (OpenVPN или L2TP/IPsec)
+4. Введите учетные данные
+5. Нажмите "Сохранить профиль"`}
           </Text>
         </View>
         
@@ -143,10 +143,10 @@ export default function HelpScreen() {
             Подключение к VPN
           </Text>
           <Text style={[styles.guideText, { color: colors.text.secondary }]}>
-            1. На главном экране выберите профиль{"\n"}
-            2. Нажмите кнопку "Подключить"{"\n"}
-            3. В демо-версии будет показано сообщение о необходимости нативной реализации{"\n"}
-            4. В полной версии статус изменится на "Подключено" при успешном подключении
+            {`1. На главном экране выберите профиль
+2. Нажмите кнопку "Подключить"
+3. Для OpenVPN подключение произойдет автоматически
+4. Для L2TP следуйте инструкциям по настройке в системе`}
           </Text>
         </View>
         
@@ -155,10 +155,10 @@ export default function HelpScreen() {
             Настройка сервера
           </Text>
           <Text style={[styles.guideText, { color: colors.text.secondary }]}>
-            1. Перейдите в раздел "Настройки"{"\n"}
-            2. В разделе "Настройки сервера" выберите "Адрес сервера"{"\n"}
-            3. Введите новый адрес сервера{"\n"}
-            4. Для L2TP/IPsec также настройте "Ключ IPsec"
+            {`1. Перейдите в раздел "Настройки"
+2. В разделе "Настройки сервера" выберите "Адрес сервера"
+3. Введите новый адрес сервера
+4. Для L2TP/IPsec также настройте "Ключ IPsec"`}
           </Text>
         </View>
       </View>

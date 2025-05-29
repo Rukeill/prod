@@ -2,17 +2,17 @@ import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 
-// Context creation function
+// Функция создания контекста
 export const createContext = async (opts: FetchCreateContextFnOptions) => {
   return {
     req: opts.req,
-    // You can add more context items here like database connections, auth, etc.
+    // Здесь можно добавить больше элементов контекста, таких как подключения к базе данных, аутентификация и т.д.
   };
 };
 
 export type Context = Awaited<ReturnType<typeof createContext>>;
 
-// Initialize tRPC
+// Инициализируем tRPC
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
 });

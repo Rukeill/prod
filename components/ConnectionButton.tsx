@@ -31,9 +31,9 @@ export default function ConnectionButton({
   };
   
   const getButtonText = () => {
-    if (isConnecting) return 'Настройка...';
+    if (isConnecting) return 'Подключение...';
     if (isConnected) return 'Отключить';
-    return 'Настроить';
+    return 'Подключить';
   };
   
   return (

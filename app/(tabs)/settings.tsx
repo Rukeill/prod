@@ -18,7 +18,7 @@ export default function SettingsScreen() {
   const [ipsecKey, setIpsecKey] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   
-  // Load settings when component mounts
+  // Загружаем настройки при монтировании компонента
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -29,7 +29,7 @@ export default function SettingsScreen() {
         setServerAddress(address);
         setIpsecKey(key);
       } catch (error) {
-        console.error('Failed to load settings:', error);
+        console.error('Не удалось загрузить настройки:', error);
       } finally {
         setIsLoading(false);
       }
@@ -81,7 +81,7 @@ export default function SettingsScreen() {
                     .catch(console.error);
                 }
               } catch (error) {
-                console.error('Failed to save server address:', error);
+                console.error('Не удалось сохранить адрес сервера:', error);
                 Alert.alert('Ошибка', 'Не удалось сохранить адрес сервера');
               }
             }
@@ -115,7 +115,7 @@ export default function SettingsScreen() {
                     .catch(console.error);
                 }
               } catch (error) {
-                console.error('Failed to save IPsec key:', error);
+                console.error('Не удалось сохранить ключ IPsec:', error);
                 Alert.alert('Ошибка', 'Не удалось сохранить ключ IPsec');
               }
             }
@@ -148,7 +148,7 @@ export default function SettingsScreen() {
                   .catch(console.error);
               }
             } catch (error) {
-              console.error('Failed to delete profiles:', error);
+              console.error('Не удалось удалить профили:', error);
               Alert.alert('Ошибка', 'Не удалось удалить профили');
             }
           },
@@ -170,14 +170,14 @@ export default function SettingsScreen() {
       try {
         await Linking.openURL('app-settings:');
       } catch (error) {
-        console.error('Could not open settings:', error);
+        console.error('Не удалось открыть настройки:', error);
         Alert.alert('Ошибка', 'Не удалось открыть настройки');
       }
     } else if (Platform.OS === 'android') {
       try {
         await Linking.openSettings();
       } catch (error) {
-        console.error('Could not open settings:', error);
+        console.error('Не удалось открыть настройки:', error);
         Alert.alert('Ошибка', 'Не удалось открыть настройки');
       }
     } else {

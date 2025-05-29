@@ -4,13 +4,13 @@ import { cors } from "hono/cors";
 import { appRouter } from "./trpc/app-router";
 import { createContext } from "./trpc/create-context";
 
-// app will be mounted at /api
+// приложение будет смонтировано на /api
 const app = new Hono();
 
-// Enable CORS for all routes
+// Включаем CORS для всех маршрутов
 app.use("*", cors());
 
-// Mount tRPC router at /trpc
+// Монтируем tRPC роутер на /trpc
 app.use(
   "/trpc/*",
   trpcServer({
@@ -20,9 +20,9 @@ app.use(
   })
 );
 
-// Simple health check endpoint
+// Простая проверка работоспособности
 app.get("/", (c) => {
-  return c.json({ status: "ok", message: "API is running" });
+  return c.json({ status: "ok", message: "API работает" });
 });
 
 export default app;

@@ -7,10 +7,10 @@ export interface VpnProfile {
   username?: string;
   password?: string;
   
-  // OpenVPN specific
-  configFile?: string; // Base64 encoded .ovpn file content
+  // Специфично для OpenVPN
+  configFile?: string; // Содержимое файла .ovpn в кодировке Base64
   
-  // L2TP/IPsec specific
+  // Специфично для L2TP/IPsec
   ipsecPreSharedKey?: string;
 }
 

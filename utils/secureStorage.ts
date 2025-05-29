@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Keys for storing encrypted data
+// Ключи для хранения зашифрованных данных
 export const SECURE_KEYS = {
   SERVER_ADDRESS: 'secure_server_address',
   IPSEC_KEY: 'secure_ipsec_key',
@@ -10,7 +10,7 @@ export const SECURE_KEYS = {
   DEFAULT_PASSWORD: 'secure_default_password',
 };
 
-// Default values for initialization
+// Значения по умолчанию для инициализации
 const DEFAULT_VALUES = {
   [SECURE_KEYS.SERVER_ADDRESS]: 'vpn531274254.softether.net',
   [SECURE_KEYS.IPSEC_KEY]: 'home-vpn',
@@ -19,53 +19,53 @@ const DEFAULT_VALUES = {
   [SECURE_KEYS.DEFAULT_PASSWORD]: 'vpnpass',
 };
 
-// Simple encryption function for demonstration purposes
-// In a real app, use more secure encryption methods
+// Простая функция шифрования для демонстрационных целей
+// В реальном приложении используйте более безопасные методы шифрования
 export const encrypt = (text: string): string => {
-  // Simple Base64 encryption
+  // Простое шифрование Base64
   try {
-    // Use different approaches for Base64 in web and React Native
+    // Используем разные подходы для Base64 в веб и React Native
     if (Platform.OS === 'web' && typeof btoa === 'function') {
       return btoa(encodeURIComponent(text));
     } else {
-      // For React Native without btoa
+      // Для React Native без btoa
       return text.split('').map(char => char.charCodeAt(0).toString(16)).join('');
     }
   } catch (error) {
-    console.error('Encryption error:', error);
+    console.error('Ошибка шифрования:', error);
     return '';
   }
 };
 
 export const decrypt = (encryptedText: string): string => {
-  // Base64 decryption
+  // Расшифровка Base64
   try {
-    // Use different approaches for Base64 in web and React Native
+    // Используем разные подходы для Base64 в веб и React Native
     if (Platform.OS === 'web' && typeof atob === 'function') {
       return decodeURIComponent(atob(encryptedText));
     } else {
-      // For React Native without atob
+      // Для React Native без atob
       const hexPairs = encryptedText.match(/.{1,2}/g) || [];
       return hexPairs.map(hex => String.fromCharCode(parseInt(hex, 16))).join('');
     }
   } catch (error) {
-    console.error('Decryption error:', error);
+    console.error('Ошибка расшифровки:', error);
     return '';
   }
 };
 
-// Save encrypted values
+// Сохранение зашифрованных значений
 export const saveSecureValue = async (key: string, value: string): Promise<void> => {
   try {
     const encryptedValue = encrypt(value);
     await AsyncStorage.setItem(key, encryptedValue);
   } catch (error) {
-    console.error('Error saving encrypted value:', error);
+    console.error('Ошибка сохранения зашифрованного значения:', error);
     throw error;
   }
 };
 
-// Get decrypted values
+// Получение расшифрованных значений
 export const getSecureValue = async (key: string): Promise<string> => {
   try {
     const encryptedValue = await AsyncStorage.getItem(key);
@@ -74,15 +74,15 @@ export const getSecureValue = async (key: string): Promise<string> => {
     }
     return '';
   } catch (error) {
-    console.error('Error getting encrypted value:', error);
+    console.error('Ошибка получения зашифрованного значения:', error);
     throw error;
   }
 };
 
-// Initialize default values
+// Инициализация значений по умолчанию
 export const initializeSecureStorage = async (): Promise<void> => {
   try {
-    // Check and set default values for all keys
+    // Проверяем и устанавливаем значения по умолчанию для всех ключей
     for (const [key, defaultValue] of Object.entries(DEFAULT_VALUES)) {
       const existingValue = await AsyncStorage.getItem(key);
       if (!existingValue) {
@@ -90,7 +90,7 @@ export const initializeSecureStorage = async (): Promise<void> => {
       }
     }
   } catch (error) {
-    console.error('Error initializing secure storage:', error);
+    console.error('Ошибка инициализации безопасного хранилища:', error);
     throw error;
   }
 };
